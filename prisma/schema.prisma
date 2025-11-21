@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["data", "public"]
+}
+
+model accion_sistema {
+  id_accion     Int          @id @default(autoincrement())
+  categoria     String?      @db.VarChar(50)
+  nombre_accion String       @db.VarChar(100)
+  descripcion   String?
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?    @default(now()) @db.Timestamp(6)
+  system_log    system_log[]
+
+  @@schema("public")
+}
+
+model alertas {
+  id_alerta          Int                 @id @default(autoincrement())
+  paciente_id        Int?
+  evaluacion_id      Int?
+  usuario_id         Int?
+  riesgo_estimado    Decimal             @db.Decimal(5, 2)
+  nivel_riesgo       String              @db.VarChar(20)
+  estado             String?             @default("Nuevo") @db.VarChar(20)
+  fecha              DateTime?           @default(now()) @db.Timestamp(6)
+  mensaje            String?
+  evaluacion_clinica evaluacion_clinica? @relation(fields: [evaluacion_id], references: [id_evaluacion], onDelete: NoAction, onUpdate: NoAction)
+  paciente           paciente?           @relation(fields: [paciente_id], references: [id_paciente], onDelete: NoAction, onUpdate: NoAction)
+  usuario            usuario?            @relation(fields: [usuario_id], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model cita_medica {
+  id_cita            Int                  @id @default(autoincrement())
+  id_paciente        Int?
+  id_usuario         Int?
+  fecha_cita         DateTime?            @db.Timestamp(6)
+  motivo             String?              @db.VarChar(255)
+  estado             String?              @db.VarChar(50)
+  observaciones      String?
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
+  paciente           paciente?            @relation(fields: [id_paciente], references: [id_paciente], onDelete: NoAction, onUpdate: NoAction)
+  usuario            usuario?             @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+  evaluacion_clinica evaluacion_clinica[]
+
+  @@schema("public")
+}
+
+model config_alertas {
+  id_config              Int       @id @default(autoincrement())
+  usuario_id             Int?      @unique
+  activar_notificaciones Boolean?  @default(false)
+  umbral_riesgo          Int?      @default(70)
+  updated_at             DateTime? @default(now()) @db.Timestamp(6)
+  usuario                usuario?  @relation(fields: [usuario_id], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model evaluacion_clinica {
+  id_evaluacion           Int            @id @default(autoincrement())
+  paciente_id             Int?
+  usuario_id              Int?
+  cita_id                 Int?
+  presion_sistolica       Int?
+  colesterol_total        Decimal?       @db.Decimal(5, 2)
+  colesterol_hdl          Decimal?       @db.Decimal(5, 2)
+  colesterol_ldl          Decimal?       @db.Decimal(5, 2)
+  glucosa                 Decimal?       @db.Decimal(5, 2)
+  fumador                 Boolean?
+  consumo_alcohol         String?        @db.VarChar(20)
+  actividad_fisica        String?        @db.VarChar(20)
+  antecedentes_familiares Boolean?
+  peso_kg                 Decimal?       @db.Decimal(5, 2)
+  altura_cm               Decimal?       @db.Decimal(5, 2)
+  imc                     Decimal?       @db.Decimal(5, 2)
+  sintomas                String?
+  created_at              DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?      @default(now()) @db.Timestamp(6)
+  presion_diastolica      Int?
+  alertas                 alertas[]
+  cita_medica             cita_medica?   @relation(fields: [cita_id], references: [id_cita], onDelete: NoAction, onUpdate: NoAction)
+  paciente                paciente?      @relation(fields: [paciente_id], references: [id_paciente], onDelete: NoAction, onUpdate: NoAction)
+  usuario                 usuario?       @relation(fields: [usuario_id], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+  resultado_ia            resultado_ia[]
+
+  @@schema("public")
+}
+
+model paciente {
+  id_paciente        Int                  @id @default(autoincrement())
+  usuario_id         Int?
+  edad               Int?
+  sexo               String?              @db.VarChar(10)
+  fecha_nacimiento   DateTime?            @db.Date
+  telefono           String?              @db.VarChar(20)
+  email              String?              @db.VarChar(120)
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
+  nombre_completo    String?              @db.VarChar(100)
+  alertas            alertas[]
+  cita_medica        cita_medica[]
+  evaluacion_clinica evaluacion_clinica[]
+  usuario            usuario?             @relation(fields: [usuario_id], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model reporte_clinico {
+  id_reporte      Int           @id @default(autoincrement())
+  resultado_id    Int?
+  archivo_pdf_url String?       @db.VarChar(255)
+  descripcion     String?
+  created_at      DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?     @default(now()) @db.Timestamp(6)
+  resultado_ia    resultado_ia? @relation(fields: [resultado_id], references: [id_resultado], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model resultado_ia {
+  id_resultado            Int                 @id @default(autoincrement())
+  evaluacion_id           Int?
+  riesgo_estimado         Decimal?            @db.Decimal(5, 2)
+  nivel_riesgo            String?             @db.VarChar(20)
+  modelo_version          String?             @db.VarChar(50)
+  enfermedades_detectadas Json?
+  created_at              DateTime?           @default(now()) @db.Timestamp(6)
+  updated_at              DateTime?           @default(now()) @db.Timestamp(6)
+  reporte_clinico         reporte_clinico[]
+  evaluacion_clinica      evaluacion_clinica? @relation(fields: [evaluacion_id], references: [id_evaluacion], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model system_log {
+  id_log         Int             @id @default(autoincrement())
+  id_usuario     Int?
+  id_accion      Int?
+  origen         String?         @db.VarChar(50)
+  ip_origen      String?         @db.VarChar(45)
+  user_agent     String?         @db.VarChar(255)
+  fecha          DateTime?       @default(now()) @db.Timestamp(6)
+  accion_sistema accion_sistema? @relation(fields: [id_accion], references: [id_accion], onDelete: NoAction, onUpdate: NoAction)
+  usuario        usuario?        @relation(fields: [id_usuario], references: [id_usuario], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
+
+model tipo_usuario {
+  id_tipo_usuario Int       @id @default(autoincrement())
+  nombre_tipo     String    @db.VarChar(50)
+  descripcion     String?
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+  usuario         usuario[]
+
+  @@schema("public")
+}
+
+model usuario {
+  id_usuario         Int                  @id @default(autoincrement())
+  nombre             String?              @db.VarChar(100)
+  apellido           String?              @db.VarChar(100)
+  correo             String               @unique @db.VarChar(120)
+  contrasena_hash    String               @db.VarChar(255)
+  tipo_usuario_id    Int?
+  created_at         DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
+  estado             Int?
+  alertas            alertas[]
+  cita_medica        cita_medica[]
+  config_alertas     config_alertas?
+  evaluacion_clinica evaluacion_clinica[]
+  paciente           paciente[]
+  system_log         system_log[]
+  tipo_usuario       tipo_usuario?        @relation(fields: [tipo_usuario_id], references: [id_tipo_usuario], onDelete: NoAction, onUpdate: NoAction)
+
+  @@schema("public")
+}
