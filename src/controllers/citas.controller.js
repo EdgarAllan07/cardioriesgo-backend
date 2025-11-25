@@ -1,11 +1,12 @@
-import { prisma } from '../config/prismaClient.js';
+import { prisma } from "../config/prismaClient.js";
+import { logAction } from "../services/log.service.js";
 
 // ==============================
 // OBTENER TODAS LAS CITAS (doctor o admin)
 // ==============================
 export async function obtenerCitas(req, res, next) {
   try {
-    const doctorId = Number(req.query.doctorId) || null;
+    const doctorId = Number(req.params.id) || null;
 
     const citas = await prisma.cita_medica.findMany({
       where: doctorId ? { id_usuario: doctorId } : {},
@@ -27,11 +28,20 @@ export async function obtenerCitas(req, res, next) {
         },
       },
       orderBy: {
-        fecha_cita: 'asc',
+        fecha_cita: "asc",
       },
     });
 
     res.json(citas);
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "ver_citas",
+      descripcion: "Visualización de lista de citas médicas.",
+      origen: "citas.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
@@ -50,12 +60,21 @@ export async function crearCita(req, res, next) {
         id_usuario: data.id_usuario,
         fecha_cita: new Date(data.fecha_cita),
         motivo: data.motivo,
-        estado: data.estado || 'Programada',
+        estado: data.estado || "Programada",
         observaciones: data.observaciones || null,
       },
     });
 
     res.status(201).json(nuevaCita);
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "crear_cita_medica",
+      descripcion: `Creación de cita médica para paciente ID ${data.id_paciente}`,
+      origen: "citas.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
@@ -83,6 +102,15 @@ export async function actualizarCita(req, res, next) {
     });
 
     res.json(citaActualizada);
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "actualizar_cita_medica",
+      descripcion: `Actualización de cita médica ID ${id}`,
+      origen: "citas.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
@@ -99,7 +127,16 @@ export async function eliminarCita(req, res, next) {
       where: { id_cita: id },
     });
 
-    res.json({ message: 'Cita eliminada correctamente' });
+    res.json({ message: "Cita eliminada correctamente" });
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "eliminar_cita_medica",
+      descripcion: `Eliminación de cita médica ID ${id}`,
+      origen: "citas.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
@@ -118,6 +155,15 @@ export async function eliminarCitasPorDoctor(req, res, next) {
 
     res.json({
       message: `Se eliminaron ${deleted.count} citas del doctor con ID ${doctorId}`,
+    });
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "eliminar_citas_doctor",
+      descripcion: `Eliminación de todas las citas del doctor ID ${doctorId}`,
+      origen: "citas.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
     });
   } catch (err) {
     next(err);

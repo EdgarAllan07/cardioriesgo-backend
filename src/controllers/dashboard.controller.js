@@ -1,4 +1,5 @@
 import { prisma } from "../config/prismaClient.js";
+import { logAction } from "../services/log.service.js";
 export async function header(req, res, next) {
   const id = Number(req.params.id);
   try {
@@ -110,23 +111,32 @@ CROSS JOIN alto_riesgo_mes_actual hrm
 CROSS JOIN alto_riesgo_mes_anterior hra;
 
     `;
-     const cleanData = users.map(row => {
+    const cleanData = users.map((row) => {
       const cleaned = {};
       for (const key in row) {
         const value = row[key];
-        cleaned[key] = typeof value === 'bigint' ? Number(value) : value;
+        cleaned[key] = typeof value === "bigint" ? Number(value) : value;
       }
       return cleaned;
     });
-    
+
     res.json(cleanData);
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "ver_dashboard_header",
+      descripcion: `Visualización del header del dashboard para usuario ID ${id}`,
+      origen: "dashboard.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
 }
 
 export async function pacienteAltoRiesgo(req, res, next) {
-  const  id  = Number(req.params.id);
+  const id = Number(req.params.id);
   try {
     const users = await prisma.$queryRaw`
     SELECT 
@@ -145,15 +155,24 @@ export async function pacienteAltoRiesgo(req, res, next) {
     limit 3
     `;
     res.json(users);
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "ver_pacientes_alto_riesgo",
+      descripcion: `Visualización de pacientes de alto riesgo para usuario ID ${id}`,
+      origen: "dashboard.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
 }
 
-export async function ultimaEvaluacionesPacientes(req,res,next){
-  try{
-    const id = Number(req.params.id)
-   const users = await prisma.$queryRaw`
+export async function ultimaEvaluacionesPacientes(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    const users = await prisma.$queryRaw`
     SELECT p.nombre_completo,
     p.id_paciente,
     p.edad,
@@ -170,17 +189,17 @@ export async function ultimaEvaluacionesPacientes(req,res,next){
     WHERE u.id_usuario = ${id}
     order by p.created_at desc
     limit 4
-    `
-    res.json(users)
-  }catch(err){
-    next(err)
+    `;
+    res.json(users);
+  } catch (err) {
+    next(err);
   }
 }
 
-export async function ultimaEvaluacionesRealizadas(req,res,next){
-  const id = Number(req.params.id)
-  try{
-  const users = await prisma.$queryRaw`
+export async function ultimaEvaluacionesRealizadas(req, res, next) {
+  const id = Number(req.params.id);
+  try {
+    const users = await prisma.$queryRaw`
  SELECT 
   p.id_paciente,
   p.nombre_completo,
@@ -196,11 +215,9 @@ export async function ultimaEvaluacionesRealizadas(req,res,next){
  where u.id_usuario = ${id}
   order by e.created_at desc 
   limit 2
-    `
-    res.json(users)
-
-  }catch(err){
-    next(err)
+    `;
+    res.json(users);
+  } catch (err) {
+    next(err);
   }
-
 }

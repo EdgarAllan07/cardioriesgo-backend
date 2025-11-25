@@ -1,5 +1,6 @@
 import { prisma } from "../config/prismaClient.js";
 import { aiClient } from "../utils/aiClient.js";
+import { logAction } from "../services/log.service.js";
 
 export async function createEvaluacion(req, res, next) {
   try {
@@ -80,6 +81,15 @@ export async function createEvaluacion(req, res, next) {
     });
 
     res.status(201).json({ paciente, evaluacion, resultado });
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "crear_evaluacion",
+      descripcion: `Creación de evaluación clínica para paciente ID ${paciente.id_paciente}`,
+      origen: "evaluacion.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
@@ -105,6 +115,15 @@ export async function listaEvaluacionesPorPaciente(req, res, next) {
       ORDER BY e.created_at DESC
     `;
     res.status(200).json(evaluaciones);
+
+    await logAction({
+      usuario_id: req.user?.userId || null,
+      accion_nombre: "ver_evaluaciones_paciente",
+      descripcion: `Visualización de evaluaciones del paciente ID ${id}`,
+      origen: "evaluacion.controller",
+      ip: req.ip,
+      user_agent: req.headers["user-agent"],
+    });
   } catch (err) {
     next(err);
   }
