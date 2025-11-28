@@ -21,33 +21,67 @@ export async function createPaciente(req, res, next) {
 export async function listPacientes(req, res, next) {
   try {
     const id = Number(req.params.id);
-    const pacientes = await prisma.$queryRaw`
-    SELECT 
-    p.nombre_completo,
-    p.id_paciente,
-    p.edad,
-    p.sexo,
-    r.riesgo_estimado * 100
-    FROM public.paciente p 
-    INNER JOIN public.usuario u
-    on p.usuario_id =  u.id_usuario
-    INNER JOIN public.evaluacion_clinica e
-    on e.paciente_id = p.id_paciente
-    INNER JOIN public.resultado_ia r
-    on r.evaluacion_id = e.id_evaluacion
-WHERE u.id_usuario = ${id}
-    `;
-    res.json(pacientes);
+
+    // Obtener todos los pacientes del usuario con sus evaluaciones
+    const pacientes = await prisma.paciente.findMany({
+      where: {
+        usuario_id: id,
+      },
+      include: {
+        evaluacion_clinica: {
+          include: {
+            resultado_ia: {
+              select: {
+                riesgo_estimado: true,
+              },
+            },
+          },
+          orderBy: {
+            created_at: "desc",
+          },
+          take: 1, // Solo la evaluación más reciente
+        },
+      },
+    });
+
+    // Transformar los datos al formato esperado
+    const data = pacientes.map((paciente) => {
+      const ultimaEvaluacion = paciente.evaluacion_clinica[0];
+
+      return {
+        id_paciente: paciente.id_paciente,
+        nombre_completo: paciente.nombre_completo,
+        edad: paciente.edad,
+        sexo: paciente.sexo,
+        email: paciente.email,
+        telefono: paciente.telefono,
+        fecha_nacimiento: paciente.fecha_nacimiento
+          ? paciente.fecha_nacimiento.toISOString().split("T")[0]
+          : null,
+        ultima_evaluacion: ultimaEvaluacion?.created_at
+          ? ultimaEvaluacion.created_at.toISOString().split("T")[0]
+          : null,
+        nivel_riesgo: ultimaEvaluacion?.resultado_ia?.[0]?.riesgo_estimado
+          ? parseFloat(ultimaEvaluacion.resultado_ia[0].riesgo_estimado)
+          : null,
+      };
+    });
+
+    res.json({
+      data: data,
+      total: data.length,
+    });
 
     await logAction({
       usuario_id: req.user?.userId || null,
       accion_nombre: "ver_pacientes",
-      descripcion: "Visualización de lista de pacientes.",
+      descripcion: `Visualización de lista de pacientes del usuario ID ${id}`,
       origen: "paciente.controller",
       ip: req.ip,
       user_agent: req.headers["user-agent"],
     });
   } catch (err) {
+    console.error(err);
     next(err);
   }
 }

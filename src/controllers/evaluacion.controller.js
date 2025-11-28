@@ -108,9 +108,9 @@ export async function listaEvaluacionesPorPaciente(req, res, next) {
         e.imc,
         e.presion_sistolica || '/' || e.presion_diastolica AS "PA",
         r.nivel_riesgo
-      FROM data.paciente p
-      INNER JOIN data.evaluacion_clinica e ON p.id_paciente = e.paciente_id
-      INNER JOIN data.resultado_ia r ON r.evaluacion_id = e.id_evaluacion
+      FROM public.paciente p
+      INNER JOIN public.evaluacion_clinica e ON p.id_paciente = e.paciente_id
+      INNER JOIN public.resultado_ia r ON r.evaluacion_id = e.id_evaluacion
       WHERE p.id_paciente = ${id}
       ORDER BY e.created_at DESC
     `;

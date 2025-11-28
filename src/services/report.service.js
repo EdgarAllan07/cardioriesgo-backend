@@ -56,37 +56,77 @@ export async function creationReport(paciente, evaluacion, resultado) {
   /* ============================================================
      1. GENERAR TEXTO CON IA
   ============================================================ */
+  /* ============================================================
+     1. GENERAR TEXTO CON IA
+  ============================================================ */
   const prompt = `
-  Genera un reporte médico profesional basado en los siguientes datos:
+  Actúa como un cardiólogo experto. Analiza los siguientes datos de un paciente y genera una lista de 5 a 7 recomendaciones médicas específicas, prácticas y accionables para mejorar su salud cardiovascular.
 
-  Paciente: ${paciente.nombre_completo}
-  Edad: ${paciente.edad} años
-  Sexo: ${paciente.sexo}
-  Presión arterial: ${evaluacion.presion_sistolica}/${evaluacion.presion_diastolica} mmHg
-  Colesterol total: ${evaluacion.colesterol_total} mg/dL
-  Glucosa: ${evaluacion.glucosa} mg/dL
-  IMC: ${evaluacion.imc}
-  Nivel de riesgo IA: ${resultado.nivel_riesgo}
-  Riesgo estimado: ${resultado.riesgo_estimado}%
-  Enfermedades detectadas: ${JSON.stringify(resultado.enfermedades_detectadas)}
+  Datos del Paciente:
+  - Nombre: ${paciente.nombre_completo}
+  - Edad: ${paciente.edad} años
+  - Sexo: ${paciente.sexo}
+  - Presión arterial: ${evaluacion.presion_sistolica}/${evaluacion.presion_diastolica} mmHg
+  - Colesterol total: ${evaluacion.colesterol_total} mg/dL
+  - Glucosa: ${evaluacion.glucosa} mg/dL
+  - IMC: ${evaluacion.imc}
+  
+  Resultados del Algoritmo:
+  - Nivel de riesgo: ${resultado.nivel_riesgo}
+  - Riesgo estimado a 10 años: ${resultado.riesgo_estimado}%
+  - Enfermedades detectadas/Factores: ${JSON.stringify(resultado.enfermedades_detectadas)}
 
-  Devuélvelo como texto estructurado.
+  Instrucciones de salida:
+  - Devuelve SOLAMENTE un array JSON válido de strings.
+  - Ejemplo: ["Recomendación 1", "Recomendación 2", ...]
+  - No incluyas markdown, ni la palabra "json", ni texto adicional. Solo el array crudo.
   `;
 
-  let textoReporte = "Reporte generado automáticamente (Simulación DEBUG).";
+  let recomendaciones = [
+    "Consulta médica inmediata para evaluación más profunda.",
+    "Control de presión arterial.",
+    "Dieta baja en grasas saturadas y azúcares.",
+    "Incrementar actividad física supervisada (mínimo 150 minutos por semana).",
+    "Chequeos trimestrales de colesterol y glucosa.",
+  ];
+
   const DEBUG = process.env.DEBUG_PDF === "true";
 
   if (!DEBUG) {
     try {
       const client = new OpenAI();
-      const aiResponse = await client.responses.create({
+      const completion = await client.chat.completions.create({
         model: "gpt-4o",
-        input: prompt,
+        messages: [
+          {
+            role: "system",
+            content:
+              "Eres un asistente médico cardiólogo experto. Respondes solo con arrays JSON válidos.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,
       });
-      textoReporte = aiResponse.output_text || "No se pudo generar el reporte.";
+
+      const content = completion.choices[0].message.content;
+
+      // Intentar limpiar el string si viene con bloques de código markdown
+      const cleanContent = content
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+      const parsedRecomendaciones = JSON.parse(cleanContent);
+
+      if (
+        Array.isArray(parsedRecomendaciones) &&
+        parsedRecomendaciones.length > 0
+      ) {
+        recomendaciones = parsedRecomendaciones;
+      }
     } catch (error) {
       console.warn("Error generating AI report:", error.message);
-      textoReporte = "Error al generar el análisis con IA.";
+      // Mantiene las recomendaciones por defecto si falla
     }
   }
 
@@ -236,14 +276,6 @@ export async function creationReport(paciente, evaluacion, resultado) {
   // ---------------------------
   doc.font("Helvetica-Bold").fontSize(16).text("Recomendaciones preliminares");
   doc.moveDown();
-
-  const recomendaciones = [
-    "Consulta médica inmediata para evaluación más profunda.",
-    "Control de presión arterial.",
-    "Dieta baja en grasas saturadas y azúcares.",
-    "Incrementar actividad física supervisada (mínimo 150 minutos por semana).",
-    "Chequeos trimestrales de colesterol y glucosa.",
-  ];
 
   recomendaciones.forEach((r) => doc.text("• " + r));
   doc.moveDown(2);
