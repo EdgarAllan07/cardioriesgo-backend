@@ -277,7 +277,7 @@ export async function creationReport(paciente, evaluacion, resultado) {
   doc.font("Helvetica-Bold").fontSize(16).text("Recomendaciones preliminares");
   doc.moveDown();
 
-  recomendaciones.forEach((r) => doc.text("• " + r));
+  recomendaciones.forEach((r) => doc.fontSize(12).text("• " + r));
   doc.moveDown(2);
 
   // ---------------------------
